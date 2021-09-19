@@ -6,11 +6,9 @@ class DataframeAccumulator(AccumulatorABC):
         self._df = df
         
     def add(self, other: "DataframeAccumulator") -> "DataframeAccumulator":
-#        print('I am in add')
         return DataframeAccumulator(pd.concat([self._df, other._df], ignore_index = True))
     
     def __add__(self, other):
-#        print('I am in __add__')
         return self.add(other)
 
     def __iadd__(self, other):
