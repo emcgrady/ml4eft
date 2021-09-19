@@ -78,9 +78,11 @@ ref_weight_avg = np.mean(ref_weight)
 df_r = df_eft.multiply(ref_weight_avg)
 
 #make a dataframe for each WC in wc_names_lst where each df contains df_z
-#plus the column of r_c for chosen WC, save to a HDF5 file with the df
-#key corresponding to the name of the chosen WC
+#plus the column of r_c for chosen WC
 for i in range(len(wc_names_cross)):
+    file = '/scratch365/hnelson2/feather/rc_' + str(wc_names_cross[i])+'.feather'
+    df_rc.to_feather(file)
+    
     #we could save each df into one hdf5 file with a unique key, but when I did this 
     #the size of the file was ~100GB for just 1/3 of the data, so we will need to save
     #to feather files to keep the memory size managable
@@ -88,5 +90,3 @@ for i in range(len(wc_names_cross)):
     #df_rc = df_z.join(df_r[wc_names_cross[i]])
     #df_rc.to_hdf('/scratch365/hnelson2/hdf/rc_dfs.h5', key = wc_names_cross[i], mode='a')
 
-    file = '/scratch365/hnelson2/feather/rc_' + str(wc_names_cross[i])+'.feather'
-    df_rc.to_feather(file)
