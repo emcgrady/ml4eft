@@ -5,6 +5,7 @@ import math
 
 from coffea import processor
 from df_accumulator import DataframeAccumulator
+from functions import get_wc_names_cross
 
 class AnalysisProcessor(processor.ProcessorABC):
     def __init__(self, samples, wc_names_lst=[], dtype=np.float32):
@@ -29,15 +30,9 @@ class AnalysisProcessor(processor.ProcessorABC):
         if eft_coeffs is not None:
             if self._samples[dataset]['WCnames'] != self._wc_names_lst:
                 eft_coeffs = efth.remap_coeffs(self._samples[dataset]['WCnames'], self._wc_names_lst, eft_coeffs)
-                
-        WC = []
-        self._wc_names_lst.insert(0,'SM')
         
-        for i in range(276):
-            WC.append(self._wc_names_lst[math.floor((-1+math.sqrt(9-8*(1-i)))/2)] + '*' 
-                      + self._wc_names_lst[i - int((math.floor((-1+math.sqrt(9-8*(1-i)))/2)+1)*
-                                        math.floor((-1+math.sqrt(9-8*(1-i)))/2)/2)])
-        
+        WC = get_wc_names_cross(self._wc_names_lst)
+
         eft_coeffs = pd.DataFrame(data = eft_coeffs, columns = WC)
         
         higgs    = events.GenPart[((events.GenPart.pdgId == 25)) & events.GenPart.hasFlags('isLastCopy')]
