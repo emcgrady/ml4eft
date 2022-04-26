@@ -156,7 +156,7 @@ if __name__ == '__main__':
 
   # Run the processor and get the output
   tstart = time.time()
-  output = processor.run_uproot_job(flist, treename=treename, processor_instance=processor_instance, executor=processor.futures_executor, executor_args={"schema": NanoAODSchema,'workers': nworkers, 'pre_workers': 1}, chunksize=chunksize, maxchunks=nchunks)
+  output = processor.run_uproot_job(flist, treename=treename, processor_instance=processor_instance, executor=processor.futures_executor, executor_args={"schema": NanoAODSchema,'workers': nworkers}, chunksize=chunksize, maxchunks=nchunks)
   dt = time.time() - tstart
   output.get().to_feather('/scratch365/cmcgrad2/data/data.feather')
   print("Processing time: %1.2f s with %i workers (%.2f s cpu overall)" % (dt, nworkers, dt*nworkers, ))
