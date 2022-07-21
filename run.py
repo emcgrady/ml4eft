@@ -136,23 +136,23 @@ if __name__ == '__main__':
         exit() 
 
   # Extract the list of all WCs, as long as we haven't already specified one.
-#    if len(wc_lst) == 0:
-#        for k in samplesdict.keys():
-#            for wc in samplesdict[k]['WCnames']:
-#                if wc not in wc_lst:
-#                    wc_lst.append(wc)
+    if len(wc_lst) == 0:
+        for k in samplesdict.keys():
+            for wc in samplesdict[k]['WCnames']:
+                if wc not in wc_lst:
+                    wc_lst.append(wc)
 
-#    if len(wc_lst) > 0:
+    if len(wc_lst) > 0:
         # Yes, why not have the output be in correct English?
-#        if len(wc_lst) == 1:
-#            wc_print = wc_lst[0]
-#        elif len(wc_lst) == 2:
-#            wc_print = wc_lst[0] + ' and ' + wc_lst[1]
-#        else:
-#            wc_print = ', '.join(wc_lst[:-1]) + ', and ' + wc_lst[-1]
-#       print('Wilson Coefficients: {}.'.format(wc_print))
-#    else:
-#        print('No Wilson coefficients specified')
+        if len(wc_lst) == 1:
+            wc_print = wc_lst[0]
+        elif len(wc_lst) == 2:
+            wc_print = wc_lst[0] + ' and ' + wc_lst[1]
+        else:
+            wc_print = ', '.join(wc_lst[:-1]) + ', and ' + wc_lst[-1]
+        print('Wilson Coefficients: {}.'.format(wc_print))
+    else:
+        print('No Wilson coefficients specified')
  
     processor_instance = gen_processor.AnalysisProcessor(samplesdict)#, wc_lst)
 
@@ -163,6 +163,6 @@ if __name__ == '__main__':
                                       executor_args={"schema": NanoAODSchema,'workers': nworkers},
                                       chunksize=chunksize, maxchunks=nchunks)
     dt = time.time() - tstart
-    output.get().to_feather('/scratch365/cmcgrad2/data/gg.feather')
+    output.get().to_feather('/scratch365/cmcgrad2/data/qg.feather')
     print("Processing time: %1.2f s with %i workers (%.2f s cpu overall)" % (dt, nworkers, dt*nworkers, ))
     print('Done!')

@@ -10,7 +10,7 @@ from functions import get_wc_names_cross
 class AnalysisProcessor(processor.ProcessorABC):
     def __init__(self, samples, wc_names_lst=[], dtype=np.float32):
         self._samples = samples
-#        self._wc_names_lst = wc_names_lst
+        self._wc_names_lst = wc_names_lst
         self._dtype = dtype
         
         self._accumulator = DataframeAccumulator(pd.DataFrame())
@@ -63,14 +63,14 @@ class AnalysisProcessor(processor.ProcessorABC):
         
         dataset = events.metadata['dataset']
         
-#        eft_coeffs = ak.to_numpy(events['EFTfitCoefficients']) if hasattr(events, "EFTfitCoefficients") else None
-#        if eft_coeffs is not None:
-#            if self._samples[dataset]['WCnames'] != self._wc_names_lst:
-#                eft_coeffs = efth.remap_coeffs(self._samples[dataset]['WCnames'], self._wc_names_lst, eft_coeffs)
+        eft_coeffs = ak.to_numpy(events['EFTfitCoefficients']) if hasattr(events, "EFTfitCoefficients") else None
+        if eft_coeffs is not None:
+            if self._samples[dataset]['WCnames'] != self._wc_names_lst:
+                eft_coeffs = efth.remap_coeffs(self._samples[dataset]['WCnames'], self._wc_names_lst, eft_coeffs)
         
-#        WC = get_wc_names_cross(self._wc_names_lst)
+        WC = get_wc_names_cross(self._wc_names_lst)
 
-#        eft_coeffs = pd.DataFrame(data = eft_coeffs, columns = WC)
+        eft_coeffs = pd.DataFrame(data = eft_coeffs, columns = WC)
         
         dfa = dfa.concat(eft_coeffs)
         
