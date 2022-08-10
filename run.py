@@ -154,7 +154,7 @@ if __name__ == '__main__':
     else:
         print('No Wilson coefficients specified')
  
-    processor_instance = gen_processor.AnalysisProcessor(samplesdict)#, wc_lst)
+    processor_instance = gen_processor.AnalysisProcessor(samplesdict, wc_lst)
 
   # Run the processor and get the output
     tstart = time.time()
@@ -163,6 +163,6 @@ if __name__ == '__main__':
                                       executor_args={"schema": NanoAODSchema,'workers': nworkers},
                                       chunksize=chunksize, maxchunks=nchunks)
     dt = time.time() - tstart
-    output.get().to_feather('/scratch365/cmcgrad2/data/qg.feather')
+    output.get().to_feather('/scratch365/cmcgrad2/data/uubar.feather')
     print("Processing time: %1.2f s with %i workers (%.2f s cpu overall)" % (dt, nworkers, dt*nworkers, ))
     print('Done!')

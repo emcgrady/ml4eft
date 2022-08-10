@@ -4,7 +4,7 @@ from tqdm import tqdm
 from functions import get_wc_ref_cross, get_wc_names_cross
 
 
-fname = '/scratch365/cmcgrad2/data/px_py_pz/data.feather'
+fname = '/scratch365/cmcgrad2/data/uubar/px_py_pz/uubar.feather'
 
 print('Loading dataframe...')
 df = pd.read_feather(fname)
@@ -28,6 +28,6 @@ print('Final dataframe generated!')
 
 print('Saving dataframes...')
 for i in tqdm(range(len(wc_names_cross))):
-    file = '/scratch365/cmcgrad2/data/px_py_pz/dataframes/' + str(wc_names_cross[i])+'.feather'
+    file = '/scratch365/cmcgrad2/data/uubar/px_py_pz/dataframes/' + str(wc_names_cross[i])+'.feather'
     df.iloc[:, [0,1,2,3,4,5,6,7,8,i+9]].to_feather(file)
 print('Done!')
