@@ -94,21 +94,7 @@ def scatter(df, name, kind, axt, title, subset, datatype, coef, log=False, color
     plt.savefig(str('plots/' + coef + '/' + datatype + '/scatter_plots/' + subset + '/rc_vs_' + kind + '.png'))
     plt.show()
     
-def dnnPlots(lossIn, lossOut, lossTest, test, corr, inputs, outputs, model, coef, coord, num):
-
-    pred = model(test).cpu().detach()
-    res  = torch.abs(model(test).squeeze() - corr).cpu().detach()
-    corr = corr.cpu().detach()
-    test = test.cpu().detach()
-
-    pred2 = model(inputs).cpu().detach()
-    res2  = torch.abs(model(inputs).squeeze() - outputs).cpu().detach()
-    outputs = outputs.cpu().detach()
-    inputs = inputs.cpu().detach()
-
-    testResiduals = (torch.abs(torch.div(res,corr))).numpy()
-    trainResiduals = (torch.abs(torch.div(res2,outputs))).numpy()
-    residuals = np.append(trainResiduals, testResiduals)
+def dnnPlots(lossIn, lossOut, lossTest, corr, pred, res, coef, coord, int_part, num, log):
 
     #Plot of the loss function
     plt.rcParams['figure.figsize'] = [15, 8]
@@ -120,17 +106,17 @@ def dnnPlots(lossIn, lossOut, lossTest, test, corr, inputs, outputs, model, coef
     plt.yscale('log')
     plt.title('Loss Function by Epoch', fontsize=16)
     plt.legend(loc='best', fontsize=12)
-    plt.savefig(str('plots/' + coef + '/' + coord + '/network_performance/loss_run_' + str(num) + '.png'))
+    plt.savefig(str('plots/' + int_part + '/' + coef + '/' + coord + '/network_performance/loss_run_' + str(num) + '.png'))
     plt.clf()
 
     #Expected vs results
-    plt.plot(corr.numpy(), pred.numpy(), 'g.', label='Training Results')
-    plt.grid(b=True, color='grey', alpha=0.2, linestyle=':', linewidth=2)
+    plt.hist2d(corr.numpy(), pred.numpy().squeeze(), bins = [250,250], norm = colors.LogNorm())
+    plt.colorbar()
     plt.xlabel("Correct", fontsize=12)
     plt.ylabel("Predicted", fontsize=12)
     plt.title("Training Distribution Against Expected Results", fontsize=16)
-    plt.legend(loc="best", fontsize=12)
-    plt.savefig(str('plots/' + coef + '/' + coord + '/network_performance/expected_run_' + str(num) + '.png'))
+    plt.show()
+    plt.savefig(str('plots/' + int_part + '/' + coef + '/' + coord + '/network_performance/expected_run_' + str(num) + '.png'))
     plt.clf()
 
     #Distribution of results
@@ -142,7 +128,7 @@ def dnnPlots(lossIn, lossOut, lossTest, test, corr, inputs, outputs, model, coef
     plt.ylabel("Frequency", fontsize=12)
     plt.title("Distribution of Results", fontsize=16)
     plt.legend(loc="best", fontsize=12)
-    plt.savefig(str('plots/' + coef + '/' + coord + '/network_performance/distributions_run_' + str(num) + '.png'))
+    plt.savefig(str('plots/' + int_part + '/' + coef + '/' + coord + '/network_performance/distributions_run_' + str(num) + '.png'))
     plt.clf()
 
     #Distribution of results (Log)
@@ -157,20 +143,20 @@ def dnnPlots(lossIn, lossOut, lossTest, test, corr, inputs, outputs, model, coef
     plt.title("Distribution of Results", fontsize=16)
     plt.xscale('log')
     plt.legend(loc="best", fontsize=12)
-    plt.savefig(str('plots/' + coef + '/' + coord + '/network_performance/distributions_log_pos_run_' + str(num) + '.png'))
+    plt.savefig(str('plots/' + int_part + '/' + coef + '/' + coord + '/network_performance/distributions_log_pos_run_' + str(num) + '.png'))
     plt.clf()
 
     #Distribution of residuals
-    plt.hist(testResiduals, bins=100)
+    plt.hist(res, bins=100)
     plt.grid(b=True, color='grey', alpha=0.2, linestyle=':', linewidth=2)
     plt.yscale('log')
     plt.xlabel("Residual", fontsize=12)
     plt.ylabel("Frequency", fontsize=12)
     plt.title("Residual Distribution (Linear)", fontsize=16)
-    plt.savefig(str('plots/' + coef + '/' + coord + '/network_performance/residuals_run_' + str(num) + '.png'))
+    plt.savefig(str('plots/' + int_part + '/' + coef + '/' + coord + '/network_performance/residuals_run_' + str(num) + '.png'))
     plt.clf()
 
-    return residuals
+    return 
 
 def train(test, corr, inputs, outputs, batch_size, model, n_epochs, optimizer, scheduler):
     
@@ -208,10 +194,48 @@ def train(test, corr, inputs, outputs, batch_size, model, n_epochs, optimizer, s
     
     return(lossIn, lossOut, lossTest)
 
-def sliced(df, t_size, batch_size):
-    t_size = int(math.floor(math.floor(len(df)*t_size) / batch_size) * batch_size)
-    inputs  = torch.tensor(df.iloc[:t_size,:9].values, dtype = torch.float32).cuda()
-    outputs = torch.tensor(df.iloc[:t_size, 9].values, dtype = torch.float32).cuda()
-    test    = torch.tensor(df.iloc[t_size:,:9].values, dtype = torch.float32).cuda()
-    corr    = torch.tensor(df.iloc[t_size:, 9].values, dtype = torch.float32).cuda()
+def sliced(df, t_size, batch_size, log):
+#    outputs = df.iloc[:,9]
+#    if log == True:
+#        outputs = np.log(outputs)
+    end = len(df.columns) - 1
+    t_size = int(math.floor(len(df)*t_size / batch_size) * batch_size)
+    inputs  = torch.tensor(df.iloc[:t_size,:end].values, dtype = torch.float32).cuda()
+    outputs = torch.tensor(df.iloc[:t_size, end].values, dtype = torch.float32).cuda()
+    test    = torch.tensor(df.iloc[t_size:,:end].values, dtype = torch.float32).cuda()
+    corr    = torch.tensor(df.iloc[t_size:, end].values, dtype = torch.float32).cuda()
     return(inputs, outputs, test, corr)
+
+def mom_dot(df):
+    higgs_mass = 125
+    top_mass = 176
+    
+    df.insert(len(df.columns)-1,  'Higgs E', np.sqrt(higgs_mass**2 +
+                                                     df['Higgs $p_x$']**2 +
+                                                     df['Higgs $p_y$']**2 +
+                                                     df['Higgs $p_z$']**2))
+    df.insert(len(df.columns)-1, 'Top E', np.sqrt(top_mass**2 +
+                                                  df['Top $p_x$']**2 +
+                                                  df['Top $p_y$']**2 +
+                                                  df['Higgs $p_z$']**2))
+    df.insert(len(df.columns)-1, 'Anti-Top E', np.sqrt(top_mass**2 +
+                                                       df['Anti-Top $p_x$']**2 +
+                                                       df['Anti-Top $p_y$']**2 +
+                                                       df['Anti-Top $p_z$']**2))
+    
+    df.insert(len(df.columns)-1, '$P_h \cdot P_t$', (df['Higgs E']*df['Top E'] - 
+                                               df['Higgs $p_x$']*df['Top $p_x$'] - 
+                                               df['Higgs $p_y$']*df['Top $p_y$'] -
+                                               df['Higgs $p_z$']*df['Top $p_z$']))
+    df.insert(len(df.columns)-1, '$P_h \cdot P_a$', (df['Higgs E']*df['Anti-Top E'] - 
+                                               df['Higgs $p_x$']*df['Anti-Top $p_x$'] - 
+                                               df['Higgs $p_y$']*df['Anti-Top $p_y$'] -
+                                               df['Higgs $p_z$']*df['Anti-Top $p_z$']))
+    df.insert(len(df.columns)-1, '$P_t \cdot P_a$', (df['Higgs E']*df['Anti-Top E'] - 
+                                               df['Top $p_x$']*df['Anti-Top $p_x$'] - 
+                                               df['Top $p_y$']*df['Anti-Top $p_y$'] -
+                                               df['Top $p_z$']*df['Anti-Top $p_z$']))
+    
+    df.drop(['Higgs E', 'Top E', 'Anti-Top E'], axis=1)
+    
+    return(df)
