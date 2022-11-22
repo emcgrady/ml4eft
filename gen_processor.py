@@ -6,6 +6,7 @@ import math
 from coffea import processor
 from df_accumulator import DataframeAccumulator
 from functions import get_wc_names_cross
+import topcoffea.modules.eft_helper as efth
 
 class AnalysisProcessor(processor.ProcessorABC):
     def __init__(self, samples, wc_names_lst=[], dtype=np.float32):
@@ -24,6 +25,25 @@ class AnalysisProcessor(processor.ProcessorABC):
         dfa  = self._accumulator
         df = dfa.get()
         
+        events = events[((events.GenPart.pdgId[:, 0] == 1) ^ (events.GenPart.pdgId[:, 0] == -1)) & 
+                        ((events.GenPart.pdgId[:, 1] == 1) ^ (events.GenPart.pdgId[:, 1] == -1))]
+        
+        higgs    = events.GenPart[((events.GenPart.pdgId == 25)) & events.GenPart.hasFlags('isLastCopy')]
+        top      = events.GenPart[((events.GenPart.pdgId == 6))  & events.GenPart.hasFlags('isLastCopy')]
+        anti_top = events.GenPart[((events.GenPart.pdgId == -6)) & events.GenPart.hasFlags('isLastCopy')]
+        
+        df['Higgs px']   = ak.to_pandas(ak.flatten(higgs.pt*np.cos(higgs.phi)))
+        df['Higgs py']  = ak.to_pandas(ak.flatten(higgs.pt*np.sin(higgs.phi)))
+        df['Higgs pz']  = ak.to_pandas(ak.flatten(higgs.pt*np.sinh(higgs.eta)))
+        
+        df['Top px']   = ak.to_pandas(ak.flatten(top.pt*np.cos(top.phi)))
+        df['Top py']  = ak.to_pandas(ak.flatten(top.pt*np.sin(top.phi)))
+        df['Top pz']  = ak.to_pandas(ak.flatten(top.pt*np.sinh(top.eta)))
+        
+        df['Anti-Top px']   = ak.to_pandas(ak.flatten(anti_top.pt*np.cos(anti_top.phi)))
+        df['Anti-Top py']  = ak.to_pandas(ak.flatten(anti_top.pt*np.sin(anti_top.phi)))
+        df['Anti-Top pz']  = ak.to_pandas(ak.flatten(anti_top.pt*np.sinh(anti_top.eta)))
+        
         dataset = events.metadata['dataset']
         
         eft_coeffs = ak.to_numpy(events['EFTfitCoefficients']) if hasattr(events, "EFTfitCoefficients") else None
@@ -35,30 +55,7 @@ class AnalysisProcessor(processor.ProcessorABC):
 
         eft_coeffs = pd.DataFrame(data = eft_coeffs, columns = WC)
         
-        higgs    = events.GenPart[((events.GenPart.pdgId == 25)) & events.GenPart.hasFlags('isLastCopy')]
-        top      = events.GenPart[((events.GenPart.pdgId == 6))  & events.GenPart.hasFlags('isLastCopy')]
-        anti_top = events.GenPart[((events.GenPart.pdgId == -6)) & events.GenPart.hasFlags('isLastCopy')]
-        
-        df['Higgs pt']   = ak.to_pandas(ak.flatten(higgs.pt))
-        df['Higgs eta']  = ak.to_pandas(ak.flatten(higgs.eta))
-        df['Higgs phi']  = ak.to_pandas(ak.flatten(higgs.phi))
-        df['Higgs mass'] = ak.to_pandas(ak.flatten(higgs.mass))
-        
-        df['Top pt']   = ak.to_pandas(ak.flatten(top.pt))
-        df['Top eta']  = ak.to_pandas(ak.flatten(top.eta))
-        df['Top phi']  = ak.to_pandas(ak.flatten(top.phi))
-        df['Top mass'] = ak.to_pandas(ak.flatten(top.mass))
-        
-        df['Anti-Top pt']   = ak.to_pandas(ak.flatten(anti_top.pt))
-        df['Anti-Top eta']  = ak.to_pandas(ak.flatten(anti_top.eta))
-        df['Anti-Top phi']  = ak.to_pandas(ak.flatten(anti_top.phi))
-        df['Anti-Top mass'] = ak.to_pandas(ak.flatten(anti_top.mass))
-        
         dfa = dfa.concat(eft_coeffs)
-
-#        print(df)
-        
-#        print(dfa.get())
         
         return dfa
     
