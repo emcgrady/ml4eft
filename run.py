@@ -9,10 +9,14 @@ import os
 from optparse import OptionParser
 
 import uproot
-import numpy as np
 from coffea import hist, processor
 from coffea.util import load, save
 from coffea.nanoevents import NanoAODSchema
+
+import pandas as pd
+import numpy as np
+from tqdm import tqdm
+from functions import get_wc_ref_cross, get_wc_names_cross
 
 import gen_processor
 from topcoffea.modules import samples
@@ -25,39 +29,22 @@ if __name__ == '__main__':
     parser.add_argument('jsonFiles', nargs='?', default='', help = 'Json file(s) containing files and metadata')
     parser.add_argument('--prefix', '-r', nargs='?', default='', help = 'Prefix or redirector to look for the files')
     parser.add_argument('--test', '-t', action='store_true', help = 'To perform a test, run over a few events in a couple of chunks')
-    parser.add_argument('--pretend', action='store_true', help = 'Read json files but, not execute the analysis')
     parser.add_argument('--nworkers','-n'   , default=8  , help = 'Number of workers')
     parser.add_argument('--chunksize','-s'   , default=100000  , help = 'Number of events per chunk')
     parser.add_argument('--nchunks','-c'   , default=None  , help = 'You can choose to run only a number of chunks')
-    parser.add_argument('--outname','-o'   , default='plotsTopEFT', help = 'Name of the output file with histograms')
-    parser.add_argument('--outpath','-p'   , default='histos', help = 'Name of the output directory')
     parser.add_argument('--treename'   , default='Events', help = 'Name of the tree inside the files')
-    parser.add_argument('--do-errors', action='store_true', help = 'Save the w**2 coefficients')
-    parser.add_argument('--do-systs', action='store_true', help = 'Run over systematic samples (takes longer)')
     parser.add_argument('--wc-list', action='extend', nargs='+', help = 'Specify a list of Wilson coefficients to use in filling histograms.')
     parser.add_argument('--int_part', default='all', help='Initial particles')
     
     args = parser.parse_args()
     jsonFiles  = args.jsonFiles
     prefix     = args.prefix
-    dotest     = args.test
     nworkers   = int(args.nworkers)
     chunksize  = int(args.chunksize)
     nchunks    = int(args.nchunks) if not args.nchunks is None else args.nchunks
-    outname    = args.outname
-    outpath    = args.outpath
-    pretend    = args.pretend
     treename   = args.treename
-    do_errors = args.do_errors
-    do_systs  = args.do_systs
     wc_lst = args.wc_list if args.wc_list is not None else []
     int_part = args.int_part
-
-    if dotest:
-        nchunks = 2
-        chunksize = 10000
-        nworkers = 1
-        print('Running a fast test with %i workers, %i chunks of %i events'%(nworkers, nchunks, chunksize))
 
     ### Load samples from json
     samplesdict = {}
@@ -131,10 +118,6 @@ if __name__ == '__main__':
         print('   - nFiles       : %i'   %len(samplesdict[sname]['files']))
         for fname in samplesdict[sname]['files']: print('     %s'%fname)
 
-    if pretend: 
-        print('pretending...')
-        exit() 
-
   # Extract the list of all WCs, as long as we haven't already specified one.
     if len(wc_lst) == 0:
         for k in samplesdict.keys():
@@ -143,7 +126,6 @@ if __name__ == '__main__':
                     wc_lst.append(wc)
 
     if len(wc_lst) > 0:
-        # Yes, why not have the output be in correct English?
         if len(wc_lst) == 1:
             wc_print = wc_lst[0]
         elif len(wc_lst) == 2:
@@ -153,6 +135,8 @@ if __name__ == '__main__':
         print('Wilson Coefficients: {}.'.format(wc_print))
     else:
         print('No Wilson coefficients specified')
+        
+    print('wc_lst = ' + str(wc_lst))
  
     processor_instance = gen_processor.AnalysisProcessor(samplesdict, wc_lst)
 
@@ -163,6 +147,30 @@ if __name__ == '__main__':
                                       executor_args={"schema": NanoAODSchema,'workers': nworkers},
                                       chunksize=chunksize, maxchunks=nchunks)
     dt = time.time() - tstart
-    output.get().to_feather('/scratch365/cmcgrad2/data/uubar.feather')
     print("Processing time: %1.2f s with %i workers (%.2f s cpu overall)" % (dt, nworkers, dt*nworkers, ))
+    print('Done!')
+    
+    output = output.get()
+
+    wc_ref = [12.88, -0.8, 16.53, 100., 0.99, -0.72, 100., 
+              0.93, 100.0, 0.7, 100., 0.68, 7.34, -11.14, 
+              5.79, 100., 100., 1., 100., 1.54, -1.25, 0.09]
+
+    wc_ref_cross = np.array(get_wc_ref_cross(wc_ref), dtype=np.float32)
+    wc_names_cross = np.array(get_wc_names_cross(wc_lst))
+
+    end = len(output.columns) - len(wc_ref_cross)
+    ins = list(range(end))
+    ins.append(len(ins))
+
+    ref_weight_avg = output.iloc[:, end:].dot(wc_ref_cross).mean()
+    print('Creating final dataframe...')
+    output.iloc[:, end:] = output.iloc[:, end:].multiply(1/ref_weight_avg)
+    print('Final dataframe generated!')
+    
+    print('Saving dataframes...')
+    for i in tqdm(range(len(wc_names_cross))):
+        ins[len(ins) - 1] = end + i
+        file = '/scratch365/cmcgrad2/data/lhe/' + str(wc_names_cross[i])+'.feather'
+        output.iloc[:, ins].to_feather(file)
     print('Done!')

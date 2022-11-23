@@ -4,7 +4,7 @@ from tqdm import tqdm
 from functions import get_wc_ref_cross, get_wc_names_cross
 
 
-fname = '/scratch365/cmcgrad2/data/uubar/px_py_pz/uubar.feather'
+fname = '/scratch365/cmcgrad2/data/lhe/gg/px_py_pz/w_jets/gg.feather'
 
 print('Loading dataframe...')
 df = pd.read_feather(fname)
@@ -21,13 +21,18 @@ wc_ref = [12.88, -0.8, 16.53, 100., 0.99, -0.72, 100.,
 wc_ref_cross = np.array(get_wc_ref_cross(wc_ref), dtype=np.float32)
 wc_names_cross = np.array(get_wc_names_cross(wc_names_lst))
 
-ref_weight_avg = df.iloc[:, 9:].dot(wc_ref_cross).mean()
+end = len(df.columns) - len(wc_ref_cross)
+ins = list(range(end))
+ins.append(len(ins))
+
+ref_weight_avg = df.iloc[:, end:].dot(wc_ref_cross).mean()
 print('Creating final dataframe...')
-df.iloc[:, 9:] = df.iloc[:, 9:].multiply(1/ref_weight_avg)
+df.iloc[:, end:] = df.iloc[:, end:].multiply(1/ref_weight_avg)
 print('Final dataframe generated!')
 
 print('Saving dataframes...')
 for i in tqdm(range(len(wc_names_cross))):
-    file = '/scratch365/cmcgrad2/data/uubar/px_py_pz/dataframes/' + str(wc_names_cross[i])+'.feather'
-    df.iloc[:, [0,1,2,3,4,5,6,7,8,i+9]].to_feather(file)
+    ins[len(ins) - 1] = end + i
+    file = '/scratch365/cmcgrad2/data/lhe/gg/px_py_pz/w_jets/dataframes/' + str(wc_names_cross[i])+'.feather'
+    df.iloc[:, ins].to_feather(file)
 print('Done!')

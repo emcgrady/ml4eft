@@ -4,9 +4,34 @@ import numpy as np
 import math
 
 from coffea import processor
-from df_accumulator import DataframeAccumulator
+# from df_accumulator import DataframeAccumulator
 from functions import get_wc_names_cross
 import topcoffea.modules.eft_helper as efth
+
+
+from coffea.processor import AccumulatorABC
+class DataframeAccumulator(AccumulatorABC):
+    def __init__(self, df: pd.DataFrame):
+        self._df = df
+        
+    def add(self, other: "DataframeAccumulator") -> "DataframeAccumulator":
+        return DataframeAccumulator(pd.concat([self._df, other._df], ignore_index = True))
+    
+    def __add__(self, other):
+        return self.add(other)
+
+    def __iadd__(self, other):
+        return self.add(other)
+        
+    def get(self) -> pd.DataFrame:
+        return self._df
+
+    def identity(self):
+        return DataframeAccumulator(pd.DataFrame())
+    
+    def concat(self, df: pd.DataFrame):
+        return DataframeAccumulator(pd.concat([self._df, df], axis=1))
+
 
 class AnalysisProcessor(processor.ProcessorABC):
     def __init__(self, samples, wc_names_lst=[], dtype=np.float32):
@@ -23,27 +48,39 @@ class AnalysisProcessor(processor.ProcessorABC):
     def process(self, events):
         
         dfa  = self._accumulator
-        df = dfa.get()
+        df = self._accumulator.get()
+
+        higgs    = events.LHEPart[(events.LHEPart.pdgId == 25)]
+        top      = events.LHEPart[(events.LHEPart.pdgId == 6)]
+        anti_top = events.LHEPart[(events.LHEPart.pdgId == -6)]
         
-        events = events[((events.GenPart.pdgId[:, 0] == 1) ^ (events.GenPart.pdgId[:, 0] == -1)) & 
-                        ((events.GenPart.pdgId[:, 1] == 1) ^ (events.GenPart.pdgId[:, 1] == -1))]
+        df['Particle 1']  = ak.to_pandas(events.LHEPart.pdgId[:, 0]).astype('int8')
+        df['Particle 2']  = ak.to_pandas(events.LHEPart.pdgId[:, 1]).astype('int8')
+        df['No. of Jets'] = ak.to_pandas(events.LHE.Njets).astype('int8')
         
-        higgs    = events.GenPart[((events.GenPart.pdgId == 25)) & events.GenPart.hasFlags('isLastCopy')]
-        top      = events.GenPart[((events.GenPart.pdgId == 6))  & events.GenPart.hasFlags('isLastCopy')]
-        anti_top = events.GenPart[((events.GenPart.pdgId == -6)) & events.GenPart.hasFlags('isLastCopy')]
+        df['shat'] = ak.to_pandas(np.sqrt(-4*events.LHEPart.incomingpz[:,0]*events.LHEPart.incomingpz[:,1])).astype('float32')
         
-        df['Higgs px']   = ak.to_pandas(ak.flatten(higgs.pt*np.cos(higgs.phi)))
-        df['Higgs py']  = ak.to_pandas(ak.flatten(higgs.pt*np.sin(higgs.phi)))
-        df['Higgs pz']  = ak.to_pandas(ak.flatten(higgs.pt*np.sinh(higgs.eta)))
+        df['Higgs px']   = ak.to_pandas(ak.flatten(higgs.pt*np.cos(higgs.phi))).astype('float32')
+        df['Higgs py']  = ak.to_pandas(ak.flatten(higgs.pt*np.sin(higgs.phi))).astype('float32')
+        df['Higgs pz']  = ak.to_pandas(ak.flatten(higgs.pt*np.sinh(higgs.eta))).astype('float32')
         
-        df['Top px']   = ak.to_pandas(ak.flatten(top.pt*np.cos(top.phi)))
-        df['Top py']  = ak.to_pandas(ak.flatten(top.pt*np.sin(top.phi)))
-        df['Top pz']  = ak.to_pandas(ak.flatten(top.pt*np.sinh(top.eta)))
+        df['Top px']   = ak.to_pandas(ak.flatten(top.pt*np.cos(top.phi))).astype('float32')
+        df['Top py']  = ak.to_pandas(ak.flatten(top.pt*np.sin(top.phi))).astype('float32')
+        df['Top pz']  = ak.to_pandas(ak.flatten(top.pt*np.sinh(top.eta))).astype('float32')
         
-        df['Anti-Top px']   = ak.to_pandas(ak.flatten(anti_top.pt*np.cos(anti_top.phi)))
-        df['Anti-Top py']  = ak.to_pandas(ak.flatten(anti_top.pt*np.sin(anti_top.phi)))
-        df['Anti-Top pz']  = ak.to_pandas(ak.flatten(anti_top.pt*np.sinh(anti_top.eta)))
+        df['Anti-Top px']   = ak.to_pandas(ak.flatten(anti_top.pt*np.cos(anti_top.phi))).astype('float32')
+        df['Anti-Top py']  = ak.to_pandas(ak.flatten(anti_top.pt*np.sin(anti_top.phi))).astype('float32')
+        df['Anti-Top pz']  = ak.to_pandas(ak.flatten(anti_top.pt*np.sinh(anti_top.eta))).astype('float32')
         
+        df['T-H d eta'] = ak.to_pandas(ak.flatten(top.eta - higgs.eta)).astype('float32')
+        df['A-H d eta'] = ak.to_pandas(ak.flatten(anti_top.eta - higgs.eta)).astype('float32')
+        df['T-A d eta'] = ak.to_pandas(ak.flatten(top.eta - anti_top.eta)).astype('float32')
+        
+        df['T-H d phi'] = ak.to_pandas(ak.flatten(top.phi - higgs.phi)).astype('float32')
+        df['A-H d phi'] = ak.to_pandas(ak.flatten(anti_top.phi - higgs.phi)).astype('float32')
+        df['T-A d phi'] = ak.to_pandas(ak.flatten(top.phi - anti_top.phi)).astype('float32')
+        
+
         dataset = events.metadata['dataset']
         
         eft_coeffs = ak.to_numpy(events['EFTfitCoefficients']) if hasattr(events, "EFTfitCoefficients") else None
@@ -58,6 +95,7 @@ class AnalysisProcessor(processor.ProcessorABC):
         dfa = dfa.concat(eft_coeffs)
         
         return dfa
+
     
     def postprocess(self, accumulator):
         return accumulator
